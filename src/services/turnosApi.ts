@@ -7,18 +7,19 @@ import type {
   YoungResearcher,
 } from "../types";
 
-const INVALID_API_URL_VALUES = new Set(["undefined", "null"]);
+const DEFAULT_API_URL = "http://localhost:8080";
+const INVALID_API_URL_VALUES = new Set(["", "undefined", "null"]);
 const rawApiUrl = import.meta.env.VITE_API_URL;
 const normalizedApiUrl = typeof rawApiUrl === "string" ? rawApiUrl.trim() : "";
 
 const API_URL =
-  normalizedApiUrl &&
   !INVALID_API_URL_VALUES.has(normalizedApiUrl.toLowerCase())
     ? normalizedApiUrl.replace(/\/+$/, "")
-    : "";
+    : DEFAULT_API_URL;
 
 if (import.meta.env.DEV) {
-  console.log("MONICA API_URL:", API_URL || "same-origin");
+  console.log("[MONICA API] VITE_API_URL:", rawApiUrl);
+  console.log("[MONICA API] API_URL:", API_URL);
 }
 
 const API_LOG_PREFIX = "[MONICA API]";
@@ -88,7 +89,6 @@ type RequestDiagnostics = {
   method: string;
   path: string;
   requestUrl: string;
-  sameOrigin: boolean;
 };
 
 export type AssignmentConflict = {
@@ -215,18 +215,6 @@ function getRequestUrl(path: string): string {
   return `${API_URL}${path}`;
 }
 
-function getAbsoluteRequestUrl(requestUrl: string): string {
-  if (typeof window === "undefined") {
-    return requestUrl;
-  }
-
-  try {
-    return new URL(requestUrl, window.location.origin).toString();
-  } catch {
-    return requestUrl;
-  }
-}
-
 function getResponsePreview(text: string): string {
   return text.length > RESPONSE_PREVIEW_LENGTH
     ? `${text.slice(0, RESPONSE_PREVIEW_LENGTH)}...`
@@ -240,11 +228,10 @@ function getRequestDiagnostics(
   const requestUrl = getRequestUrl(path);
 
   return {
-    apiBase: API_URL || "same-origin",
+    apiBase: API_URL,
     method: options?.method || "GET",
     path,
-    requestUrl: getAbsoluteRequestUrl(requestUrl),
-    sameOrigin: !API_URL,
+    requestUrl,
   };
 }
 

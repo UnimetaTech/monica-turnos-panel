@@ -3,6 +3,7 @@ dist
 dist-ssr
 .git
 .env
+.env.local
 .env.*
 *.log
 npm-debug.log*
