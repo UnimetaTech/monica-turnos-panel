@@ -1,22 +1,21 @@
-FROM node:24-alpine AS build
-
+# Etapa 1: build con Node
+FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
-
+RUN npm install
 COPY . .
-
-ARG VITE_API_URL=http://localhost:8080
-ENV VITE_API_URL=$VITE_API_URL
-
 RUN npm run build
 
-FROM nginx:1.29-alpine AS runtime
+# Etapa 2: produccion con Node + serve
+FROM node:20-alpine
+WORKDIR /app
 
-COPY --from=build /app/dist /usr/share/nginx/html
+# Instalar "serve" globalmente
+RUN npm install -g serve
 
-EXPOSE 4273
+# Copiar solo el build
+COPY --from=builder /app/dist ./dist
 
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 4173
+CMD ["serve", "-s", "dist", "-l", "4173"]
