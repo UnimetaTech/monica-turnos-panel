@@ -100,8 +100,13 @@ function App() {
       if (currentRequestId !== availabilityRequestId.current) return;
 
       setResearcherAvailability(data);
-    } catch {
+    } catch (error) {
       if (currentRequestId !== availabilityRequestId.current) return;
+
+      console.error("[MONICA UI] Error loading researcher availability", {
+        error,
+        eventId,
+      });
 
       setResearcherAvailability([]);
       setAvailabilityError(
@@ -138,8 +143,10 @@ function App() {
         setResearchers(researchersData);
         setAssignments(assignmentsData);
         setNotification(null);
-      } catch {
+      } catch (error) {
         if (!isMounted) return;
+
+        console.error("[MONICA UI] Error loading initial panel data", error);
 
         setNotification({
           kind: "error",
@@ -224,7 +231,14 @@ function App() {
         kind: "success",
         text: "Horario actualizado correctamente.",
       });
-    } catch {
+    } catch (error) {
+      console.error("[MONICA UI] Error updating event time", {
+        end,
+        error,
+        eventId,
+        start,
+      });
+
       setEvents(previousEvents);
       setNotification({
         kind: "error",
@@ -258,6 +272,12 @@ function App() {
         return;
       }
 
+      console.error("[MONICA UI] Error assigning researcher", {
+        error,
+        eventId,
+        researcherId,
+      });
+
       setNotification({
         kind: "error",
         text: "No se pudo asignar el joven investigador.",
@@ -283,7 +303,12 @@ function App() {
         kind: "success",
         text: "Asignación retirada correctamente.",
       });
-    } catch {
+    } catch (error) {
+      console.error("[MONICA UI] Error removing assignment", {
+        assignmentId,
+        error,
+      });
+
       setNotification({
         kind: "error",
         text: "No se pudo quitar la asignación.",

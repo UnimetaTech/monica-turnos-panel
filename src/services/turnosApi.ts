@@ -20,6 +20,9 @@ const API_URL =
 if (import.meta.env.DEV) {
   console.log("MONICA API_URL:", API_URL || "same-origin");
 }
+
+const API_LOG_PREFIX = "[MONICA API]";
+const RESPONSE_PREVIEW_LENGTH = 500;
 const REPLACEMENT_CHARACTER = "\uFFFD";
 
 const KNOWN_API_TEXT_REPAIRS: Array<[RegExp, string]> = [
@@ -68,6 +71,24 @@ type BackendAssignment = {
   event_id: string;
   young_researcher_id: string;
   status: Assignment["status"];
+};
+
+type ParsedJson =
+  | {
+      body: unknown;
+      ok: true;
+    }
+  | {
+      error: unknown;
+      ok: false;
+    };
+
+type RequestDiagnostics = {
+  apiBase: string;
+  method: string;
+  path: string;
+  requestUrl: string;
+  sameOrigin: boolean;
 };
 
 export type AssignmentConflict = {
@@ -178,31 +199,126 @@ function getErrorMessage(body: unknown): string {
   return "No se pudo completar la solicitud.";
 }
 
-function parseJson(text: string): unknown {
+function parseJson(text: string): ParsedJson {
   if (!text) {
-    return null;
+    return { body: null, ok: true };
   }
 
   try {
-    return JSON.parse(text);
-  } catch {
-    return null;
+    return { body: JSON.parse(text), ok: true };
+  } catch (error) {
+    return { error, ok: false };
   }
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-    ...options,
-  });
+function getRequestUrl(path: string): string {
+  return `${API_URL}${path}`;
+}
 
-  const body = parseJson(await response.text());
+function getAbsoluteRequestUrl(requestUrl: string): string {
+  if (typeof window === "undefined") {
+    return requestUrl;
+  }
+
+  try {
+    return new URL(requestUrl, window.location.origin).toString();
+  } catch {
+    return requestUrl;
+  }
+}
+
+function getResponsePreview(text: string): string {
+  return text.length > RESPONSE_PREVIEW_LENGTH
+    ? `${text.slice(0, RESPONSE_PREVIEW_LENGTH)}...`
+    : text;
+}
+
+function getRequestDiagnostics(
+  path: string,
+  options?: RequestInit
+): RequestDiagnostics {
+  const requestUrl = getRequestUrl(path);
+
+  return {
+    apiBase: API_URL || "same-origin",
+    method: options?.method || "GET",
+    path,
+    requestUrl: getAbsoluteRequestUrl(requestUrl),
+    sameOrigin: !API_URL,
+  };
+}
+
+function logApiNetworkError(error: unknown, details: RequestDiagnostics): void {
+  console.error(`${API_LOG_PREFIX} Network error`, {
+    ...details,
+    error,
+  });
+}
+
+function logApiHttpError(
+  response: Response,
+  body: unknown,
+  details: RequestDiagnostics
+): void {
+  console.error(`${API_LOG_PREFIX} HTTP error`, {
+    ...details,
+    body,
+    status: response.status,
+    statusText: response.statusText,
+  });
+}
+
+function logApiInvalidJsonResponse(
+  response: Response,
+  responseText: string,
+  parseError: unknown,
+  details: RequestDiagnostics
+): void {
+  console.error(`${API_LOG_PREFIX} Invalid JSON response`, {
+    ...details,
+    contentType: response.headers.get("Content-Type"),
+    parseError,
+    responsePreview: getResponsePreview(responseText),
+    status: response.status,
+    statusText: response.statusText,
+  });
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const details = getRequestDiagnostics(path, options);
+  let response: Response;
+
+  try {
+    response = await fetch(getRequestUrl(path), {
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+      ...options,
+    });
+  } catch (error) {
+    logApiNetworkError(error, details);
+    throw error;
+  }
+
+  const responseText = await response.text();
+  const parsedJson = parseJson(responseText);
+  const body = parsedJson.ok
+    ? parsedJson.body
+    : { rawText: getResponsePreview(responseText) };
 
   if (!response.ok) {
+    logApiHttpError(response, body, details);
     throw new ApiError(getErrorMessage(body), response.status, body);
+  }
+
+  if (!parsedJson.ok) {
+    logApiInvalidJsonResponse(response, responseText, parsedJson.error, details);
+    throw new ApiError(
+      "El backend no respondió con JSON válido.",
+      response.status,
+      body
+    );
   }
 
   return body as T;
