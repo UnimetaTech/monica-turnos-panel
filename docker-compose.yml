@@ -1,0 +1,12 @@
+services:
+  monica-turnos-panel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Vite reemplaza esta variable en build-time, no en runtime.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    image: monica-turnos-panel:latest
+    expose:
+      - "80"
+    restart: unless-stopped
