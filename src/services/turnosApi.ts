@@ -7,7 +7,20 @@ import type {
   YoungResearcher,
 } from "../types";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const DEFAULT_API_URL = "http://localhost:8080";
+const rawApiUrl = import.meta.env.VITE_API_URL;
+const normalizedApiUrl = typeof rawApiUrl === "string" ? rawApiUrl.trim() : "";
+
+const API_URL =
+  normalizedApiUrl &&
+  normalizedApiUrl !== "undefined" &&
+  normalizedApiUrl !== "null"
+    ? normalizedApiUrl.replace(/\/+$/, "")
+    : DEFAULT_API_URL;
+
+if (import.meta.env.DEV) {
+  console.log("MONICA API_URL:", API_URL);
+}
 const REPLACEMENT_CHARACTER = "\uFFFD";
 
 const KNOWN_API_TEXT_REPAIRS: Array<[RegExp, string]> = [
