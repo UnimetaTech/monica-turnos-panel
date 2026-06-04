@@ -7,7 +7,7 @@ import type {
   YoungResearcher,
 } from "../types";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_URL = import.meta.env.VITE_API_URL;
 const REPLACEMENT_CHARACTER = "\uFFFD";
 
 const KNOWN_API_TEXT_REPAIRS: Array<[RegExp, string]> = [
