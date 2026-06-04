@@ -5,5 +5,5 @@ services:
       dockerfile: Dockerfile
     image: monica-turnos-panel:latest
     expose:
-      - "4173"
+      - "4273"
     restart: unless-stopped
